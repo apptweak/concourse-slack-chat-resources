@@ -94,7 +94,7 @@ func (r *Regexp) UnmarshalJSON(payload []byte) error {
     err := json.Unmarshal(payload, &pattern)
     if err != nil { return err }
 
-    regexp, regexp_err := regexp.Compile(pattern)
+    regexp, regexp_err := regexp.Compile(`(?i)` + pattern)
     if regexp_err != nil { return regexp_err }
 
     *r = Regexp{*regexp}

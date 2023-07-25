@@ -17,6 +17,18 @@ with the following benefits:
 - More powerful interpolation of contents of arbitrary files into message text and other parameters.
 - Written in Go as opposed to Bash, in case you care about this :).
 
+## How to deeploy
+
+```bash
+  # Docker build 2 images: apptweakci/slack-read-resource and apptweakci/slack-post-resource
+  make all
+
+  docker login  # Login with apptweakci credentials
+  docker push apptweakci/slack-read-resource:latest
+  docker push apptweakci/slack-post-resource:latest 
+```
+
+
 Docker Store:
 
 - [apptweakci/slack-read-resource](https://store.docker.com/community/images/apptweakci/slack-read-resource)

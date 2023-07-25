@@ -97,7 +97,7 @@ func get_messages(request *utils.CheckRequest, slack_client *slack.Client) *slac
     }
 
     params.Inclusive = true
-    params.Limit = 100
+    params.Limit = 500
 
     var history *slack.GetConversationHistoryResponse
     history, err := slack_client.GetConversationHistory(&params)
