@@ -6,6 +6,7 @@ import (
     "io/ioutil"
     "os"
     "path/filepath"
+    "strings"
     "github.com/apptweak/slack-chat-resource/utils"
     "github.com/slack-go/slack"
 )
@@ -55,7 +56,20 @@ func main() {
 
     slack_client := slack.New(request.Source.Token)
 
-    response := send(message, &request, slack_client)
+    var response utils.OutResponse
+
+    // send message
+    if len(request.Params.Ts) == 0 {
+        response = send(message, &request, slack_client)
+    }else{
+        request.Params.Ts = get_file_contents(filepath.Join(source_dir, request.Params.Ts))
+        response = update(message, &request, slack_client)
+    }
+
+    //Attach file
+    if request.Params.Upload != nil {
+        uploadFile(&response, &request, slack_client, source_dir)
+    }
 
     response_err := json.NewEncoder(os.Stdout).Encode(&response)
     if response_err != nil {
@@ -88,6 +102,25 @@ func interpolate_message(message *utils.OutMessage, source_dir string) {
     //     attachment.Text = interpolate(attachment.Text, source_dir)
     //     attachment.Footer = interpolate(attachment.Footer, source_dir)
     // }
+}
+
+func update(message *utils.OutMessage, request *utils.OutRequest, slack_client *slack.Client) utils.OutResponse {
+
+    fmt.Fprintf(os.Stderr, "About to post an update message: " + request.Params.Ts  + "\n")
+    _, timestamp, _, err := slack_client.UpdateMessage(request.Source.ChannelId,
+        request.Params.Ts,
+        slack.MsgOptionText(message.Text, false),
+        // slack.MsgOptionAttachments(message.Attachments...),
+        // slack.MsgOptionBlocks(message.Blocks.BlockSet...),
+        slack.MsgOptionPostMessageParameters(message.PostMessageParameters))
+
+    if err != nil {
+        fatal("sending", err)
+    }
+
+    var response utils.OutResponse
+    response.Version = utils.Version { "timestamp": timestamp }
+    return response
 }
 
 func get_file_contents(path string) string {
@@ -157,6 +190,47 @@ func send(message *utils.OutMessage, request *utils.OutRequest, slack_client *sl
     var response utils.OutResponse
     response.Version = utils.Version { "timestamp": timestamp }
     return response
+}
+
+
+func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_client *slack.Client, source_dir string) {
+    // initialise FileUploadParameters
+    params := slack.FileUploadParameters{
+        Filename: request.Params.Upload.FileName,
+        Filetype: request.Params.Upload.FileType,
+        Title: request.Params.Upload.Title,
+        ThreadTimestamp: response.Version["timestamp"],
+        Channels: strings.Split(request.Params.Upload.Channels, ","),
+    }
+
+    if request.Params.Upload.File != "" {
+        matched, glob_err := filepath.Glob(filepath.Join(source_dir, request.Params.Upload.File))
+        if glob_err != nil {
+            fatal("Gloing Pattern", glob_err)
+        }
+
+        params.File = matched[0]
+        fmt.Fprintf(os.Stderr, "About to upload: " + params.File + "\n")
+    } else if request.Params.Upload.Content != "" {
+        params.Content = request.Params.Upload.Content
+        fmt.Fprintf(os.Stderr, "About to upload specify content as file\n")
+    } else {
+        fmt.Printf("You must either set Upload.Content or provide a local file path in Upload.File to upload it from your filesystem.")
+        return
+    }
+
+    p, _ := json.MarshalIndent(params, "", "  ")
+    fmt.Fprintf(os.Stderr, "%s\n", p)
+
+    file, err := slack_client.UploadFile(params)
+    if err != nil {
+        fmt.Printf("Error: %s\n", err)
+        return
+    }
+
+    fmt.Fprintf(os.Stderr,"Name: " + file.Name + ", URL: "+ file.URLPrivate +"\n")
+
+    response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Name, Value: file.URLPrivate})
 }
 
 func fatal(doing string, err error) {
