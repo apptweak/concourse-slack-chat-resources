@@ -17,7 +17,7 @@ with the following benefits:
 - More powerful interpolation of contents of arbitrary files into message text and other parameters.
 - Written in Go as opposed to Bash, in case you care about this :).
 
-## How to deeploy
+## How to deploy
 
 ```bash
   # Docker build 2 images: apptweakci/slack-read-resource and apptweakci/slack-post-resource
@@ -222,6 +222,8 @@ Consider a job with the `get: something` step from the example above followed by
         upload:
           file: something/path/to/file
           channels: C.......M
+          title: My awesome file
+          filetype: php
 
 This will create a message and post *something/path/to/file* to a thread.
 

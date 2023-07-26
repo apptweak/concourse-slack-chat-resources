@@ -62,8 +62,7 @@ func main() {
     if len(request.Params.Ts) == 0 {
         response = send(message, &request, slack_client)
     }else{
-        request.Params.Ts = utils.Get_file_contents(filepath.Join(source_dir, request.Params.Ts))
-        // TODO: Missing method `update` to implement
+        request.Params.Ts = get_file_contents(filepath.Join(source_dir, request.Params.Ts))
         response = update(message, &request, slack_client)
     }
 
@@ -103,6 +102,25 @@ func interpolate_message(message *utils.OutMessage, source_dir string) {
     //     attachment.Text = interpolate(attachment.Text, source_dir)
     //     attachment.Footer = interpolate(attachment.Footer, source_dir)
     // }
+}
+
+func update(message *utils.OutMessage, request *utils.OutRequest, slack_client *slack.Client) utils.OutResponse {
+
+    fmt.Fprintf(os.Stderr, "About to post an update message: " + request.Params.Ts  + "\n")
+    _, timestamp, _, err := slack_client.UpdateMessage(request.Source.ChannelId,
+        request.Params.Ts,
+        slack.MsgOptionText(message.Text, false),
+        // slack.MsgOptionAttachments(message.Attachments...),
+        // slack.MsgOptionBlocks(message.Blocks.BlockSet...),
+        slack.MsgOptionPostMessageParameters(message.PostMessageParameters))
+
+    if err != nil {
+        fatal("sending", err)
+    }
+
+    var response utils.OutResponse
+    response.Version = utils.Version { "timestamp": timestamp }
+    return response
 }
 
 func get_file_contents(path string) string {
@@ -188,7 +206,7 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
     if request.Params.Upload.File != "" {
         matched, glob_err := filepath.Glob(filepath.Join(source_dir, request.Params.Upload.File))
         if glob_err != nil {
-            utils.Fatal("Gloing Pattern", glob_err)
+            fatal("Gloing Pattern", glob_err)
         }
 
         params.File = matched[0]
@@ -206,7 +224,7 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 
     file, err := slack_client.UploadFile(params)
     if err != nil {
-        fmt.Printf("%s\n", err)
+        fmt.Printf("Error: %s\n", err)
         return
     }
 

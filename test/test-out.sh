@@ -1,4 +1,8 @@
 #! /bin/bash
+
+# Help Usage
+#  ` ./test/test-out.sh post post/out/test-request-upload.json`
+
 type=$1
 request=$2
 
@@ -13,4 +17,5 @@ cat "$request" | docker run --rm -i \
 -e BUILD_PIPELINE_NAME=mypipe \
 -e BUILD_TEAM_NAME=myteam \
 -e ATC_EXTERNAL_URL="https://example.com" \
--v "$(pwd)/$type/out:/tmp/resource" apptweak/slack-$type-resource /opt/resource/out /tmp/resource
+--platform linux/amd64 \
+-v "$(pwd)/$type/out:/tmp/resource" apptweakci/slack-$type-resource:upload-file /opt/resource/out /tmp/resource
