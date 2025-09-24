@@ -20,19 +20,18 @@ with the following benefits:
 ## How to deploy
 
 ```bash
-  # Docker build 2 images: apptweakci/slack-read-resource and apptweakci/slack-post-resource
+  # Build and push 2 images to GHCR: ghcr.io/apptweak/slack-read-resource and slack-post-resource
   make all
 
-  docker login  # Login with apptweakci credentials
-  docker push apptweakci/slack-read-resource:latest
-  docker push apptweakci/slack-post-resource:latest 
+  # Login example (CI recommended):
+  # gh auth token | docker login ghcr.io -u $(gh api user --jq .login) --password-stdin
 ```
 
 
-Docker Store:
+Images on GHCR:
 
-- [apptweakci/slack-read-resource](https://store.docker.com/community/images/apptweakci/slack-read-resource)
-- [apptweakci/slack-post-resource](https://store.docker.com/community/images/apptweakci/slack-post-resource)
+- [ghcr.io/apptweak/slack-read-resource](https://github.com/orgs/apptweak/packages/container/package/slack-read-resource)
+- [ghcr.io/apptweak/slack-post-resource](https://github.com/orgs/apptweak/packages/container/package/slack-post-resource)
 
 ## Version Format
 
@@ -50,7 +49,7 @@ Usage in a pipeline:
         - name: slack-read-resource
           type: docker-image
           source:
-            repository: apptweak/slack-read-resource
+            repository: ghcr.io/apptweak/slack-read-resource
 
     resources:
         - name: slack-in
@@ -134,7 +133,7 @@ Usage in a pipeline:
         - name: slack-post-resource
           type: docker-image
           source:
-            repository: apptweak/slack-post-resource
+            repository: ghcr.io/apptweak/slack-post-resource
 
     resources:
         - name: slack-out

@@ -18,4 +18,4 @@ cat "$request" | docker run --rm -i \
 -e BUILD_TEAM_NAME=myteam \
 -e ATC_EXTERNAL_URL="https://example.com" \
 --platform linux/amd64 \
--v "$(pwd)/$type/out:/tmp/resource" apptweakci/slack-$type-resource:upload-file /opt/resource/out /tmp/resource
+-v "$(pwd)/$type/out:/tmp/resource" ghcr.io/apptweak/slack-$type-resource:upload-file /opt/resource/out /tmp/resource

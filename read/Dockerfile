@@ -13,5 +13,17 @@ FROM build-env as build-read
       go build -o /assets/out github.com/apptweak/slack-chat-resource/read/out
 
 FROM alpine
+  ARG VERSION
+  ARG VCS_REF
+  ARG BUILD_DATE
+  LABEL org.opencontainers.image.source=https://github.com/apptweak/concourse-slack-chat-resources
+  LABEL org.opencontainers.image.url=https://github.com/apptweak/concourse-slack-chat-resources
+  LABEL org.opencontainers.image.documentation=https://github.com/apptweak/concourse-slack-chat-resources#readme
+  LABEL org.opencontainers.image.title=slack-read-resource
+  LABEL org.opencontainers.image.description="Concourse resource to read Slack messages"
+  LABEL org.opencontainers.image.vendor=AppTweak
+  LABEL org.opencontainers.image.version=$VERSION
+  LABEL org.opencontainers.image.revision=$VCS_REF
+  LABEL org.opencontainers.image.created=$BUILD_DATE
   RUN apk add --no-cache ca-certificates
   COPY --from=build-read /assets /opt/resource
