@@ -228,7 +228,18 @@ This will create a message and post *something/path/to/file* to a thread.
 
 > Notice that in order for your message to be visible *channels* is mandatory.
 
+## Releases
 
-### Use helpers
+This repository publishes container images to GHCR when a version tag is pushed to `master`.
 
-#### TBD
+- Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
+- Images published:
+  - `ghcr.io/apptweak/slack-read-resource:vX.Y.Z` and `:latest`
+  - `ghcr.io/apptweak/slack-post-resource:vX.Y.Z` and `:latest`
+
+How it works:
+- Pushing a tag `v*.*.*` triggers the `Tag Release` workflow, which verifies the tag commit is on `master` and then invokes the reusable `Build and Push Images` workflow.
+- The reusable workflow logs in to GHCR using the built-in `GITHUB_TOKEN`, syncs the `VERSION` file from the tag, and runs `make all` to build and push both images.
+
+Manual release:
+- From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3`).

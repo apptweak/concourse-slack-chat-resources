@@ -1,6 +1,27 @@
+# VCS and CI
 .git
+.github
+
+# Build artifacts
 .go-pkg-cache
 .gopath
+bin/
 bundles
+dist/
 vendor/pkg
+*.out
+*.log
+*.tmp
 
+# Local environment
+.env
+.env.*
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+
+# Tests and temporary files
+/test/
+/tmp/
