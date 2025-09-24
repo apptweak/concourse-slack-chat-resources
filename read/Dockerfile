@@ -12,7 +12,7 @@ FROM build-env as build-read
       go build -o /assets/in github.com/apptweak/slack-chat-resource/read/in &&\
       go build -o /assets/out github.com/apptweak/slack-chat-resource/read/out
 
-FROM alpine
+FROM alpine:3.22
   ARG VERSION
   ARG VCS_REF
   ARG BUILD_DATE
