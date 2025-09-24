@@ -4,6 +4,7 @@
 
 ### macOS ###
 # General
+.vscode/
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -58,4 +59,3 @@ Temporary Items
 /Godeps/
 
 # End of https://www.toptal.com/developers/gitignore/api/go
-

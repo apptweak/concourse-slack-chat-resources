@@ -243,3 +243,67 @@ How it works:
 
 Manual release:
 - From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3`).
+
+## Development
+
+### Prerequisites
+
+- Go 1.22+ (for local builds with modules)
+- Docker (for building/pushing images)
+
+### Tool versions with mise
+
+Install [mise](https://mise.jdx.dev/install.html):
+
+Usage:
+
+```bash
+# Install pinned tool versions
+mise install
+
+# Verify tools in use
+mise which go
+mise which gh
+```
+
+### Install dependencies
+
+```bash
+go mod tidy
+```
+
+### Build images locally
+
+Build and tag both images (`read` and `post`) with the version from `VERSION` and `latest`:
+
+```bash
+make all
+```
+
+Or build a single image:
+
+```bash
+make build-read-resource
+make build-post-resource
+```
+
+### Docker build context and .dockerignore
+
+- Images are built from the repository root using `-f read/Dockerfile .` or `-f post/Dockerfile .`.
+- The build context is the final `.` argument. Only the root `.dockerignore` is honored by Docker; per-directory `.dockerignore` files are ignored when building from the repo root.
+- Multi-stage copy lines like:
+
+  ```
+  COPY --from=build-env /assets /opt/resource
+  ```
+
+  copy artifacts from a prior stage; they do not use the build context. Ensure the producing stage name and output path (`/assets`) match what is built earlier in that stage.
+
+## CI Workflows
+
+- Pull Requests and pushes to `main`/`master`/`feature/*`:
+  - `PR Build (No Push)`: builds both images to catch compile issues; no registry push.
+- Tags matching `v*.*.*` on `master`:
+  - `Tag Release`: verifies the tag commit is on `master`, then calls `Build and Push Images`.
+- Manual publish:
+  - `Build and Push Images`: can be dispatched from the Actions UI with an input `version` (e.g. `v1.2.3`).
