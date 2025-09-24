@@ -1,0 +1,39 @@
+name: Tag Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # semantic version tags
+
+permissions:
+  contents: read    # read repository content
+  packages: write   # push images to GHCR
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is on master (not ahead)
+        run: |
+          TAG_REF="${GITHUB_REF#refs/tags/}"
+          TAG_COMMIT=$(git rev-list -n 1 "$TAG_REF")
+          MASTER_COMMIT=$(git rev-parse origin/master)
+          ## Check if the tag commit is on master
+          BASE=$(git merge-base "$TAG_COMMIT" "$MASTER_COMMIT")
+          if [ "$BASE" != "$TAG_COMMIT" ]; then
+            ## If not, exit with an error
+            echo "Tag $TAG_REF does not point to a commit on master (or is ahead of master)." >&2
+            exit 1
+          fi
+          ## If so, exit with a success
+          echo "Tag $TAG_REF verified on master."
+
+      - name: Call reusable build-and-push workflow
+        uses: ./.github/workflows/build-and-push.yml
+        with:
+          version: ${{ github.ref_name }}  # tag name (e.g., v1.2.3)
