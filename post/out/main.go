@@ -86,6 +86,20 @@ func main() {
 		}
 	}
 
+	// Add emoji reactions to the thread parent (message.thread_ts) if provided
+	if message.ThreadTimestamp != "" && len(request.Params.ThreadEmojiReactions) > 0 {
+		threadTs := message.ThreadTimestamp
+		ref := slack.NewRefToMessage(request.Source.ChannelId, threadTs)
+		for _, emoji := range request.Params.ThreadEmojiReactions {
+			if emoji == "" {
+				continue
+			}
+			if err := slack_client.AddReaction(emoji, ref); err != nil {
+				fatal("adding thread reaction", err)
+			}
+		}
+	}
+
 	response_err := json.NewEncoder(os.Stdout).Encode(&response)
 	if response_err != nil {
 		fatal("encoding response", response_err)
