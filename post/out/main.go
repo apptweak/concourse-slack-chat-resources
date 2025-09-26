@@ -74,30 +74,12 @@ func main() {
 
 	// Add emoji reactions to the posted/updated message
 	if len(request.Params.EmojiReactions) > 0 {
-		ts := response.Version["timestamp"]
-		ref := slack.NewRefToMessage(request.Source.ChannelId, ts)
-		for _, emoji := range request.Params.EmojiReactions {
-			if emoji == "" {
-				continue
-			}
-			if err := slack_client.AddReaction(emoji, ref); err != nil {
-				fatal("adding reaction", err)
-			}
-		}
+		addReactions(slack_client, request.Source.ChannelId, response.Version["timestamp"], request.Params.EmojiReactions)
 	}
 
 	// Add emoji reactions to the thread parent (message.thread_ts) if provided
 	if message.ThreadTimestamp != "" && len(request.Params.ThreadEmojiReactions) > 0 {
-		threadTs := message.ThreadTimestamp
-		ref := slack.NewRefToMessage(request.Source.ChannelId, threadTs)
-		for _, emoji := range request.Params.ThreadEmojiReactions {
-			if emoji == "" {
-				continue
-			}
-			if err := slack_client.AddReaction(emoji, ref); err != nil {
-				fatal("adding thread reaction", err)
-			}
-		}
+		addReactions(slack_client, request.Source.ChannelId, message.ThreadTimestamp, request.Params.ThreadEmojiReactions)
 	}
 
 	response_err := json.NewEncoder(os.Stdout).Encode(&response)
@@ -259,6 +241,21 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	fmt.Fprintf(os.Stderr, "Name: "+file.Name+", URL: "+file.URLPrivate+"\n")
 
 	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Name, Value: file.URLPrivate})
+}
+
+func addReactions(slack_client *slack.Client, channelId string, timestamp string, emojis []string) {
+	if timestamp == "" || len(emojis) == 0 {
+		return
+	}
+	ref := slack.NewRefToMessage(channelId, timestamp)
+	for _, emoji := range emojis {
+		if emoji == "" {
+			continue
+		}
+		if err := slack_client.AddReaction(emoji, ref); err != nil {
+			fatal("adding reaction to timestamp "+timestamp, err)
+		}
+	}
 }
 
 func fatal(doing string, err error) {
