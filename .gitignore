@@ -1,10 +1,32 @@
+# Created by https://www.toptal.com/developers/gitignore/api/macos,go,VisualStudioCode
+# Edit at https://www.toptal.com/developers/gitignore?templates=macos,go,VisualStudioCode
 
-# Created by https://www.toptal.com/developers/gitignore/api/macos
-# Edit at https://www.toptal.com/developers/gitignore?templates=macos
+### Go ###
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
 
 ### macOS ###
 # General
-.vscode/
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -32,31 +54,26 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# End of https://www.toptal.com/developers/gitignore/api/macos
+### macOS Patch ###
+# iCloud generated files
+*.icloud
 
-# Created by https://www.toptal.com/developers/gitignore/api/go
-# Edit at https://www.toptal.com/developers/gitignore?templates=go
+### VisualStudioCode ###
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
 
-### Go ###
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-bin/
+# Local History for Visual Studio Code
+.history/
 
-# Test binary, built with `go test -c`
-*.test
+# Built Visual Studio Code Extensions
+*.vsix
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+.ionide
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-### Go Patch ###
-/vendor/
-/Godeps/
-
-# End of https://www.toptal.com/developers/gitignore/api/go
+# End of https://www.toptal.com/developers/gitignore/api/macos,go,VisualStudioCode
