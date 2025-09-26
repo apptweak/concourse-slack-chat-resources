@@ -1,10 +1,10 @@
 package main
 
 import (
-    "os"
+	"os"
 )
 
 func main() {
-    os.Stderr.WriteString("Not supported.\n")
-    os.Exit(1)
+	os.Stderr.WriteString("Not supported.\n")
+	os.Exit(1)
 }
