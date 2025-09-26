@@ -20,19 +20,18 @@ with the following benefits:
 ## How to deploy
 
 ```bash
-  # Docker build 2 images: apptweakci/slack-read-resource and apptweakci/slack-post-resource
+  # Build and push 2 images to GHCR: ghcr.io/apptweak/slack-read-resource and slack-post-resource
   make all
 
-  docker login  # Login with apptweakci credentials
-  docker push apptweakci/slack-read-resource:latest
-  docker push apptweakci/slack-post-resource:latest 
+  # Login example (CI recommended):
+  # gh auth token | docker login ghcr.io -u $(gh api user --jq .login) --password-stdin
 ```
 
 
-Docker Store:
+Images on GHCR:
 
-- [apptweakci/slack-read-resource](https://store.docker.com/community/images/apptweakci/slack-read-resource)
-- [apptweakci/slack-post-resource](https://store.docker.com/community/images/apptweakci/slack-post-resource)
+- [ghcr.io/apptweak/slack-read-resource](https://github.com/orgs/apptweak/packages/container/package/slack-read-resource)
+- [ghcr.io/apptweak/slack-post-resource](https://github.com/orgs/apptweak/packages/container/package/slack-post-resource)
 
 ## Version Format
 
@@ -50,7 +49,7 @@ Usage in a pipeline:
         - name: slack-read-resource
           type: docker-image
           source:
-            repository: apptweak/slack-read-resource
+            repository: ghcr.io/apptweak/slack-read-resource
 
     resources:
         - name: slack-in
@@ -134,7 +133,7 @@ Usage in a pipeline:
         - name: slack-post-resource
           type: docker-image
           source:
-            repository: apptweak/slack-post-resource
+            repository: ghcr.io/apptweak/slack-post-resource
 
     resources:
         - name: slack-out
@@ -229,7 +228,82 @@ This will create a message and post *something/path/to/file* to a thread.
 
 > Notice that in order for your message to be visible *channels* is mandatory.
 
+## Releases
 
-### Use helpers
+This repository publishes container images to GHCR when a version tag is pushed to `master`.
 
-#### TBD
+- Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
+- Images published:
+  - `ghcr.io/apptweak/slack-read-resource:vX.Y.Z` and `:latest`
+  - `ghcr.io/apptweak/slack-post-resource:vX.Y.Z` and `:latest`
+
+How it works:
+- Pushing a tag `v*.*.*` triggers the `Tag Release` workflow, which verifies the tag commit is on `master` and then invokes the reusable `Build and Push Images` workflow.
+- The reusable workflow logs in to GHCR using the built-in `GITHUB_TOKEN`, syncs the `VERSION` file from the tag, and runs `make all` to build and push both images.
+
+Manual release:
+- From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3`).
+
+## Development
+
+### Prerequisites
+
+- Go 1.22+ (for local builds with modules)
+- Docker (for building/pushing images)
+
+### Tool versions with mise
+
+Install [mise](https://mise.jdx.dev/install.html):
+
+Usage:
+
+```bash
+# Install pinned tool versions
+mise install
+
+# Verify tools in use
+mise which go
+mise which gh
+```
+
+### Install dependencies
+
+```bash
+go mod tidy
+```
+
+### Build images locally
+
+Build and tag both images (`read` and `post`) with the version from `VERSION` and `latest`:
+
+```bash
+make all
+```
+
+Or build a single image:
+
+```bash
+make build-read-resource
+make build-post-resource
+```
+
+### Docker build context and .dockerignore
+
+- Images are built from the repository root using `-f read/Dockerfile .` or `-f post/Dockerfile .`.
+- The build context is the final `.` argument. Only the root `.dockerignore` is honored by Docker; per-directory `.dockerignore` files are ignored when building from the repo root.
+- Multi-stage copy lines like:
+
+  ```
+  COPY --from=build-env /assets /opt/resource
+  ```
+
+  copy artifacts from a prior stage; they do not use the build context. Ensure the producing stage name and output path (`/assets`) match what is built earlier in that stage.
+
+## CI Workflows
+
+- Pull Requests and pushes to `main`/`master`/`feature/*`:
+  - `PR Build (No Push)`: builds both images to catch compile issues; no registry push.
+- Tags matching `v*.*.*` on `master`:
+  - `Tag Release`: verifies the tag commit is on `master`, then calls `Build and Push Images`.
+- Manual publish:
+  - `Build and Push Images`: can be dispatched from the Actions UI with an input `version` (e.g. `v1.2.3`).

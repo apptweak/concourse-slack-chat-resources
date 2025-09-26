@@ -1,0 +1,37 @@
+name: PR Build (No Push)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - feature/*
+    paths:
+      - read/**
+      - post/**
+  push:
+    branches:
+      - main
+      - master
+      - feature/*
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build read image (no push)
+        run: |
+          docker build --platform linux/amd64 -f read/Dockerfile -t test-read:ci .
+
+      - name: Build post image (no push)
+        run: |
+          docker build --platform linux/amd64 -f post/Dockerfile -t test-post:ci .
