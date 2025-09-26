@@ -9,8 +9,9 @@
             "thread_ts": "1234567890.123"
         },
         "thread_emoji_reactions": [
-            "eyes",
-            "thinking_face"
+            "ab",
+            "thinking_face",
+            "boom"
         ]
     }
 }
