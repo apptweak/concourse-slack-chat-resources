@@ -72,6 +72,20 @@ func main() {
 		uploadFile(&response, &request, slack_client, source_dir)
 	}
 
+	// Add emoji reactions to the posted/updated message
+	if len(request.Params.EmojiReactions) > 0 {
+		ts := response.Version["timestamp"]
+		ref := slack.NewRefToMessage(request.Source.ChannelId, ts)
+		for _, emoji := range request.Params.EmojiReactions {
+			if emoji == "" {
+				continue
+			}
+			if err := slack_client.AddReaction(emoji, ref); err != nil {
+				fatal("adding reaction", err)
+			}
+		}
+	}
+
 	response_err := json.NewEncoder(os.Stdout).Encode(&response)
 	if response_err != nil {
 		fatal("encoding response", response_err)

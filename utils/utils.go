@@ -48,10 +48,11 @@ type InParams struct {
 }
 
 type OutParams struct {
-	Message     *OutMessage `json:"message"`
-	MessageFile string      `json:"message_file"`
-	Ts          string      `json:"update_ts"`
-	Upload      *Upload     `json:"upload"`
+	Message        *OutMessage `json:"message"`
+	MessageFile    string      `json:"message_file"`
+	Ts             string      `json:"update_ts"`
+	Upload         *Upload     `json:"upload"`
+	EmojiReactions []string    `json:"emoji_reactions"`
 }
 
 type OutRequest struct {
