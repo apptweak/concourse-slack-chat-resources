@@ -253,6 +253,10 @@ func addReactions(slack_client *slack.Client, channelId string, timestamp string
 			continue
 		}
 		if err := slack_client.AddReaction(emoji, ref); err != nil {
+			// Ignore if the reaction is already present
+			if strings.Contains(err.Error(), "already_reacted") {
+				continue
+			}
 			fatal("adding reaction to timestamp "+timestamp, err)
 		}
 	}
