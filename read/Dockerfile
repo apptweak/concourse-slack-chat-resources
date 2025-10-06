@@ -16,7 +16,7 @@ FROM alpine:3.22
   LABEL org.opencontainers.image.source=https://github.com/apptweak/concourse-slack-chat-resources
   LABEL org.opencontainers.image.url=https://github.com/apptweak/concourse-slack-chat-resources
   LABEL org.opencontainers.image.documentation=https://github.com/apptweak/concourse-slack-chat-resources#readme
-  LABEL org.opencontainers.image.title=slack-read-resource
+  LABEL org.opencontainers.image.title=concourse-slack-read-resource
   LABEL org.opencontainers.image.description="Concourse resource to read Slack messages"
   LABEL org.opencontainers.image.vendor=AppTweak
   LABEL org.opencontainers.image.version=$VERSION
