@@ -3,7 +3,7 @@
 REGISTRY_HOST=ghcr.io
 ORG_NAME=apptweak
 ## IMAGE is the full repository namespace.
-IMAGE=$(REGISTRY_HOST)/$(ORG_NAME)
+IMAGE_PREFIX=$(REGISTRY_HOST)/$(ORG_NAME)/concourse
 ## VERSION is taken from the VERSION file and prefixed with 'v' (e.g., v1.2.3).
 VERSION := v$(shell cat VERSION)
 ## GH_USER is the current GitHub username.
@@ -29,12 +29,12 @@ build-read-resource:
 		--build-arg VERSION=$(VERSION) \
 		--build-arg VCS_REF=$(GIT_HEAD_SHA) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
-		--tag "$(IMAGE)/slack-read-resource:$(VERSION)" \
+		--tag "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)" \
 		-f read/Dockerfile .
-	docker tag "$(IMAGE)/slack-read-resource:$(VERSION)" "$(IMAGE)/slack-read-resource:latest"
+	docker tag "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)" "$(IMAGE_PREFIX)-slack-read-resource:latest"
 	$(DOCKER_LOGIN)
-	docker push "$(IMAGE)/slack-read-resource:$(VERSION)"
-	docker push "$(IMAGE)/slack-read-resource:latest"
+	docker push "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)"
+	docker push "$(IMAGE_PREFIX)-slack-read-resource:latest"
 
 ## Build the 'slack-post-resource' image, tag with version and latest, then push to GHCR.
 build-post-resource:
@@ -42,9 +42,9 @@ build-post-resource:
 		--build-arg VERSION=$(VERSION) \
 		--build-arg VCS_REF=$(GIT_HEAD_SHA) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
-		--tag "$(IMAGE)/slack-post-resource:$(VERSION)" \
+		--tag "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)" \
 		-f post/Dockerfile .
 	$(DOCKER_LOGIN)
-	docker tag "$(IMAGE)/slack-post-resource:$(VERSION)" "$(IMAGE)/slack-post-resource:latest"
-	docker push "$(IMAGE)/slack-post-resource:$(VERSION)"
-	docker push "$(IMAGE)/slack-post-resource:latest"
+	docker tag "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)" "$(IMAGE_PREFIX)-slack-post-resource:latest"
+	docker push "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)"
+	docker push "$(IMAGE_PREFIX)-slack-post-resource:latest"
