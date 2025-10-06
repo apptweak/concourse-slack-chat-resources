@@ -23,8 +23,24 @@ func main() {
 	response := make(map[string]interface{})
 	response["version"] = request["version"]
 
+	// Extract timestamp from version which may be a string or a map[string]interface{}
+	var timestamp string
+	if v, ok := request["version"]; ok {
+		switch vv := v.(type) {
+		case string:
+			timestamp = vv
+		case map[string]interface{}:
+			if ts, ok := vv["timestamp"].(string); ok {
+				timestamp = ts
+			}
+		}
+	}
+	if timestamp == "" {
+		fatal("extracting version timestamp", fmt.Errorf("unexpected version format: %T", request["version"]))
+	}
+
 	{
-		err := ioutil.WriteFile(filepath.Join(destination, "timestamp"), []byte(request["version"].(string)), 0644)
+		err := ioutil.WriteFile(filepath.Join(destination, "timestamp"), []byte(timestamp), 0644)
 		if err != nil {
 			fatal("writing timestamp file", err)
 		}

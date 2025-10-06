@@ -1,0 +1,8 @@
+{
+  "version": { "timestamp": "111.222" },
+  "source": {
+    "token": "dummy",
+    "channel_id": "C00000000"
+  },
+  "params": {}
+}
