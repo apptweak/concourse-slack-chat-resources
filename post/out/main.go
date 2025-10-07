@@ -72,6 +72,19 @@ func main() {
 		uploadFile(&response, &request, slack_client, source_dir)
 	}
 
+	// Add emoji reactions to the posted/updated message
+	if len(request.Params.EmojiReactions) > 0 {
+		ts := response.Version["timestamp"]
+		fmt.Fprintf(os.Stderr, "Adding emoji reactions to the posted/updated message ts=%s %+v\n", ts, request.Params.EmojiReactions)
+		addReactions(slack_client, request.Source.ChannelId, ts, request.Params.EmojiReactions)
+	}
+
+	// Add emoji reactions to the thread parent (message.thread_ts) if provided
+	if message.ThreadTimestamp != "" && len(request.Params.ThreadEmojiReactions) > 0 {
+		fmt.Fprintf(os.Stderr, "Adding emoji reactions to the thread parent: ts=%s %+v\n", message.ThreadTimestamp, request.Params.ThreadEmojiReactions)
+		addReactions(slack_client, request.Source.ChannelId, message.ThreadTimestamp, request.Params.ThreadEmojiReactions)
+	}
+
 	response_err := json.NewEncoder(os.Stdout).Encode(&response)
 	if response_err != nil {
 		fatal("encoding response", response_err)
@@ -231,6 +244,42 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	fmt.Fprintf(os.Stderr, "Name: "+file.Name+", URL: "+file.URLPrivate+"\n")
 
 	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Name, Value: file.URLPrivate})
+}
+
+func addReactions(slack_client *slack.Client, channelId string, timestamp string, emojis []string) {
+	if timestamp == "" || len(emojis) == 0 {
+		return
+	}
+	ref := slack.NewRefToMessage(channelId, timestamp)
+	for _, emoji := range emojis {
+		if emoji == "" {
+			continue
+		}
+
+		if err := slack_client.AddReaction(sanitizeEmojiName(emoji), ref); err != nil {
+			// Ignore if the reaction is already present
+			if strings.Contains(err.Error(), "already_reacted") {
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "Error adding reaction to timestamp "+timestamp+": "+err.Error()+"\n")
+		}
+	}
+}
+
+// sanitizeEmojiName removes a single leading and/or trailing colon while preserving
+// internal colons (e.g., :thumbsup:). It also trims surrounding whitespace.
+func sanitizeEmojiName(name string) string {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		return ""
+	}
+	if strings.HasPrefix(n, ":") && len(n) > 1 {
+		n = n[1:]
+	}
+	if strings.HasSuffix(n, ":") && len(n) > 1 {
+		n = n[:len(n)-1]
+	}
+	return n
 }
 
 func fatal(doing string, err error) {

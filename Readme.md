@@ -168,6 +168,8 @@ Parameters:
 - `message_file`: *Optional*. The file containing the message to send described in JSON.
 - `update_ts`: *Optional*. Instead of pusting new message update this message. (support interpolation see below)
 - `upload` : *Optional* Upload a file and attached it to the message. (see [files.upload](https://api.slack.com/methods/files.upload))
+ - `emoji_reactions` : *Optional* List of emoji names to add as reactions to the posted/updated message (e.g. `["white_check_mark", "rocket"]`).
+ - `thread_emoji_reactions` : *Optional* List of emoji names to add as reactions to the parent message referenced by `message.thread_ts` (e.g. `["eyes", "thinking_face"]`).
 
 Either `message` or `message_file` must be present. If both are present, `message_file` takes precedence and `message` is ignored.
 
@@ -227,6 +229,33 @@ Consider a job with the `get: something` step from the example above followed by
 This will create a message and post *something/path/to/file* to a thread.
 
 > Notice that in order for your message to be visible *channels* is mandatory.
+
+#### Send message and add reactions
+
+Example adding multiple reactions to the message that was just posted:
+
+```yaml
+- put: slack-out
+  params:
+    message:
+      text: "Build finished successfully"
+    emoji_reactions:
+      - "white_check_mark"
+      - "rocket"
+```
+
+#### Add reactions on the thread parent (message.thread_ts)
+
+```yaml
+- put: slack-out
+  params:
+    message:
+      text: "Reply with reactions"
+      thread_ts: "{{slack-in/timestamp}}"
+    thread_emoji_reactions:
+      - "eyes"
+      - "thinking_face"
+```
 
 ## Releases
 

@@ -1,0 +1,15 @@
+{
+    "source": {
+        "token": "",
+        "channel_id": ""
+    },
+    "params":{
+        "message": {
+            "text": "Hello with reactions"
+        },
+        "emoji_reactions": [
+            "white_check_mark",
+            "rocket"
+        ]
+    }
+}

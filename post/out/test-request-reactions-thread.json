@@ -1,0 +1,17 @@
+{
+    "source": {
+        "token": "",
+        "channel_id": ""
+    },
+    "params":{
+        "message": {
+            "text": "Reply with reactions",
+            "thread_ts": "1234567890.123"
+        },
+        "thread_emoji_reactions": [
+            "ab",
+            "thinking_face",
+            "boom"
+        ]
+    }
+}
