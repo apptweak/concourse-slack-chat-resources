@@ -4,8 +4,8 @@ This repository provides Concourse resource types to read, act on, and reply to 
 
 There are two resource types:
 
-- `slack-read-resource`: For reading messages.
-- `slack-post-resource`: For posting messages.
+- `slack-read-resource`: For reading messages. (uses [chat.postMessage](https://api.slack.com/methods/chat.postMessage))
+- `slack-post-resource`: For posting/updating messages. Uploading files (uses [channels.history](https://slack.com/api/channels.history) or [chat.update](https://api.slack.com/methods/chat.update), [files.upload](https://api.slack.com/methods/files.upload)
 
 There are two resource types because a system does not want to respond to messages that it posts itself. Concourse assumes that an output of a resource is also a valid input. Therefore, separate resources are used for reading and posting. Since using a single resource has no benefits over separate resources, reading and posting are split into two resource types.
 
@@ -17,10 +17,21 @@ with the following benefits:
 - More powerful interpolation of contents of arbitrary files into message text and other parameters.
 - Written in Go as opposed to Bash, in case you care about this :).
 
-Docker Store:
+## How to deploy
 
-- [apptweakci/slack-read-resource](https://store.docker.com/community/images/apptweakci/slack-read-resource)
-- [apptweakci/slack-post-resource](https://store.docker.com/community/images/apptweakci/slack-post-resource)
+```bash
+  # Build and push 2 images to GHCR: ghcr.io/apptweak/slack-read-resource and slack-post-resource
+  make all
+
+  # Login example (CI recommended):
+  # gh auth token | docker login ghcr.io -u $(gh api user --jq .login) --password-stdin
+```
+
+
+Images on GHCR:
+
+- [ghcr.io/apptweak/slack-read-resource](https://github.com/orgs/apptweak/packages/container/package/slack-read-resource)
+- [ghcr.io/apptweak/slack-post-resource](https://github.com/orgs/apptweak/packages/container/package/slack-post-resource)
 
 ## Version Format
 
@@ -38,7 +49,7 @@ Usage in a pipeline:
         - name: slack-read-resource
           type: docker-image
           source:
-            repository: apptweak/slack-read-resource
+            repository: ghcr.io/apptweak/slack-read-resource
 
     resources:
         - name: slack-in
@@ -122,7 +133,7 @@ Usage in a pipeline:
         - name: slack-post-resource
           type: docker-image
           source:
-            repository: apptweak/slack-post-resource
+            repository: ghcr.io/apptweak/slack-post-resource
 
     resources:
         - name: slack-out
@@ -155,6 +166,10 @@ Parameters:
 
 - `message`: *Optional*. The message to send described in YAML.
 - `message_file`: *Optional*. The file containing the message to send described in JSON.
+- `update_ts`: *Optional*. Instead of pusting new message update this message. (support interpolation see below)
+- `upload` : *Optional* Upload a file and attached it to the message. (see [files.upload](https://api.slack.com/methods/files.upload))
+ - `emoji_reactions` : *Optional* List of emoji names to add as reactions to the posted/updated message (e.g. `["white_check_mark", "rocket"]`).
+ - `thread_emoji_reactions` : *Optional* List of emoji names to add as reactions to the parent message referenced by `message.thread_ts` (e.g. `["eyes", "thinking_face"]`).
 
 Either `message` or `message_file` must be present. If both are present, `message_file` takes precedence and `message` is ignored.
 
@@ -164,7 +179,7 @@ When using `message`, some message parameters support string interpolation to in
 
 | Pattern | Substituted By |
 |---------|----------------|
-| `{{filename}}` | Contents of file `filename` |
+| `{{filename}}` | Contents of file `filename`. You can use globs in the filename (the first match is used as the file to read) |
 | `{{$variable}}` | Value of environment variable `variable` |
 
 The following message fields support string interpolation:
@@ -181,7 +196,9 @@ The following fields of an attachment support string interpolation:
 - `text`
 - `footer`
 
-### Example
+### Examples
+
+#### Create a thread
 
 Consider a job with the `get: slack-in` step from the example above followed by this step:
 
@@ -194,3 +211,128 @@ Consider a job with the `get: slack-in` step from the example above followed by 
 This will reply to the message read by the `get` step (since `thread` is the timestamp of the original message), and the reply will read:
 
     Hi abc! I will do 123 right away!
+
+#### Send message and upload file
+
+Consider a job with the `get: something` step from the example above followed by this step:
+
+    - put: slack-out
+      params:
+        message:
+            text: "Hi {{slack-in/text_part1}}! I will do {{slack-in/text_part2}} right away!"
+        upload:
+          file: something/path/to/file
+          channels: C.......M
+          title: My awesome file
+          filetype: php
+
+This will create a message and post *something/path/to/file* to a thread.
+
+> Notice that in order for your message to be visible *channels* is mandatory.
+
+#### Send message and add reactions
+
+Example adding multiple reactions to the message that was just posted:
+
+```yaml
+- put: slack-out
+  params:
+    message:
+      text: "Build finished successfully"
+    emoji_reactions:
+      - "white_check_mark"
+      - "rocket"
+```
+
+#### Add reactions on the thread parent (message.thread_ts)
+
+```yaml
+- put: slack-out
+  params:
+    message:
+      text: "Reply with reactions"
+      thread_ts: "{{slack-in/timestamp}}"
+    thread_emoji_reactions:
+      - "eyes"
+      - "thinking_face"
+```
+
+## Releases
+
+This repository publishes container images to GHCR when a version tag is pushed to `master`.
+
+- Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
+- Images published:
+  - `ghcr.io/apptweak/slack-read-resource:vX.Y.Z` and `:latest`
+  - `ghcr.io/apptweak/slack-post-resource:vX.Y.Z` and `:latest`
+
+How it works:
+- Pushing a tag `v*.*.*` triggers the `Tag Release` workflow, which verifies the tag commit is on `master` and then invokes the reusable `Build and Push Images` workflow.
+- The reusable workflow logs in to GHCR using the built-in `GITHUB_TOKEN`, syncs the `VERSION` file from the tag, and runs `make all` to build and push both images.
+
+Manual release:
+- From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3`).
+
+## Development
+
+### Prerequisites
+
+- Go 1.22+ (for local builds with modules)
+- Docker (for building/pushing images)
+
+### Tool versions with mise
+
+Install [mise](https://mise.jdx.dev/install.html):
+
+Usage:
+
+```bash
+# Install pinned tool versions
+mise install
+
+# Verify tools in use
+mise which go
+mise which gh
+```
+
+### Install dependencies
+
+```bash
+go mod tidy
+```
+
+### Build images locally
+
+Build and tag both images (`read` and `post`) with the version from `VERSION` and `latest`:
+
+```bash
+make all
+```
+
+Or build a single image:
+
+```bash
+make build-read-resource
+make build-post-resource
+```
+
+### Docker build context and .dockerignore
+
+- Images are built from the repository root using `-f read/Dockerfile .` or `-f post/Dockerfile .`.
+- The build context is the final `.` argument. Only the root `.dockerignore` is honored by Docker; per-directory `.dockerignore` files are ignored when building from the repo root.
+- Multi-stage copy lines like:
+
+  ```
+  COPY --from=build-env /assets /opt/resource
+  ```
+
+  copy artifacts from a prior stage; they do not use the build context. Ensure the producing stage name and output path (`/assets`) match what is built earlier in that stage.
+
+## CI Workflows
+
+- Pull Requests and pushes to `main`/`master`/`feature/*`:
+  - `PR Build (No Push)`: builds both images to catch compile issues; no registry push.
+- Tags matching `v*.*.*` on `master`:
+  - `Tag Release`: verifies the tag commit is on `master`, then calls `Build and Push Images`.
+- Manual publish:
+  - `Build and Push Images`: can be dispatched from the Actions UI with an input `version` (e.g. `v1.2.3`).

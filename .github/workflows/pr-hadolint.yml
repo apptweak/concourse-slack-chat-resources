@@ -1,0 +1,23 @@
+name: Hadolint - Dockerfile linting
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths:
+      - "read/Dockerfile"
+      - "post/Dockerfile"
+jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: read/Dockerfile
+          verbose: true
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: post/Dockerfile
+          verbose: true

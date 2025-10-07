@@ -1,0 +1,14 @@
+ # list of rules: https://github.com/hadolint/hadolint/wiki
+ignored:
+  - DL3008 # Pin versions in apt-get install - https://github.com/hadolint/hadolint/wiki/DL3008
+  - DL3018 # Pin versions in apk add - https://github.com/hadolint/hadolint/wiki/DL3018
+  # - DL3028 # Pin version in gem install - https://github.com/hadolint/hadolint/wiki/DL3028
+
+trustedRegistries:
+  - docker.io
+  - "*.gcr.io"
+  - "*.ecr.eu-west-1.amazonaws.com"
+
+override:
+  warning:
+    - DL3028 # Pin version in gem install - https://github.com/hadolint/hadolint/wiki/DL3028

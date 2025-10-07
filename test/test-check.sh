@@ -10,4 +10,4 @@ if [[ -z $type || -z $request ]]; then
     exit 1
 fi
 
-cat "$request" | docker run --rm -i apptweak/slack-$type-resource /opt/resource/check
+cat "$request" | docker run --rm -i ghcr.io/apptweak/slack-$type-resource /opt/resource/check

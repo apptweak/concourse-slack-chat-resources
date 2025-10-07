@@ -16,4 +16,4 @@ cat "$request" | docker run --rm -i \
 -e BUILD_PIPELINE_NAME=mypipe \
 -e BUILD_TEAM_NAME=myteam \
 -e ATC_EXTERNAL_URL="https://example.com" \
--v "$(pwd)/$type/in:/tmp/resource" apptweak/slack-$type-resource /opt/resource/in /tmp/resource
+-v "$(pwd)/$type/in:/tmp/resource" ghcr.io/apptweak/slack-$type-resource /opt/resource/in /tmp/resource
