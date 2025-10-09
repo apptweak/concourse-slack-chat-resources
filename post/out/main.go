@@ -69,6 +69,7 @@ func main() {
 
 	//Attach file
 	if request.Params.Upload != nil {
+		fmt.Fprintf(os.Stderr, "About to upload file: %+v\n", request.Params.Upload)
 		uploadFile(&response, &request, slack_client, source_dir)
 	}
 
@@ -217,7 +218,10 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	}
 
 	if request.Params.Upload.File != "" {
+		fmt.Fprintf(os.Stderr, "About to upload: "+request.Params.Upload.File+"\n")
+		fmt.Fprintf(os.Stderr, "Source dir: "+source_dir+"\n")
 		matched, glob_err := filepath.Glob(filepath.Join(source_dir, request.Params.Upload.File))
+		fmt.Fprintf(os.Stderr, "Matched: "+strings.Join(matched, ",")+"\n")
 		if glob_err != nil {
 			fatal("Gloing Pattern", glob_err)
 		}
