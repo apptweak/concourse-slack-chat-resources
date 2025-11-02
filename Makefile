@@ -4,6 +4,7 @@ REGISTRY_HOST=ghcr.io
 ORG_NAME=apptweak
 ## IMAGE is the full repository namespace.
 IMAGE_PREFIX=$(REGISTRY_HOST)/$(ORG_NAME)/concourse
+IMAGE_TAG ?= $(shell if [ "$$(git rev-parse --abbrev-ref HEAD)" = "master" ]; then echo "stable"; else echo "latest"; fi)
 ## VERSION is taken from the VERSION file and prefixed with 'v' (e.g., v1.2.3).
 VERSION := v$(shell cat VERSION)
 ## GH_USER is the current GitHub username.
@@ -11,6 +12,7 @@ GH_USER := $(shell gh api user --jq '.login')
 ## Git metadata used to stamp OCI labels (version/revision/created).
 GIT_HEAD_SHA := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
 
 ## In GitHub Actions, we already logged in to GHCR using GITHUB_TOKEN in the workflow.
 ## Locally, we log in using the GitHub CLI to obtain a token, scoped to the current GitHub user.
@@ -30,11 +32,11 @@ build-read-resource:
 		--build-arg VCS_REF=$(GIT_HEAD_SHA) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
 		--tag "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)" \
+		--tag "$(IMAGE_PREFIX)-slack-read-resource:$(IMAGE_TAG)" \
 		-f read/Dockerfile .
-	docker tag "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)" "$(IMAGE_PREFIX)-slack-read-resource:latest"
 	$(DOCKER_LOGIN)
 	docker push "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)"
-	docker push "$(IMAGE_PREFIX)-slack-read-resource:latest"
+	docker push "$(IMAGE_PREFIX)-slack-read-resource:$(IMAGE_TAG)"
 
 ## Build the 'slack-post-resource' image, tag with version and latest, then push to GHCR.
 build-post-resource:
@@ -43,8 +45,8 @@ build-post-resource:
 		--build-arg VCS_REF=$(GIT_HEAD_SHA) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
 		--tag "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)" \
+		--tag "$(IMAGE_PREFIX)-slack-post-resource:$(IMAGE_TAG)" \
 		-f post/Dockerfile .
 	$(DOCKER_LOGIN)
-	docker tag "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)" "$(IMAGE_PREFIX)-slack-post-resource:latest"
 	docker push "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)"
-	docker push "$(IMAGE_PREFIX)-slack-post-resource:latest"
+	docker push "$(IMAGE_PREFIX)-slack-post-resource:$(IMAGE_TAG)"
