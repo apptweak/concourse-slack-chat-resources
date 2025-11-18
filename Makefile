@@ -13,7 +13,6 @@ GH_USER := $(shell gh api user --jq '.login')
 GIT_HEAD_SHA := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-
 ## In GitHub Actions, we already logged in to GHCR using GITHUB_TOKEN in the workflow.
 ## Locally, we log in using the GitHub CLI to obtain a token, scoped to the current GitHub user.
 ifdef GITHUB_ACTIONS
@@ -22,10 +21,10 @@ else
 DOCKER_LOGIN := gh auth token | docker login $(REGISTRY_HOST) --username $(GH_USER) --password-stdin
 endif
 
-## Build and push both Concourse resources (read/post) to GHCR with 'VERSION' and 'latest' tags.
-all: build-read-resource build-post-resource
+## Build and push both Concourse resources (read/post) to GHCR with 'VERSION' and 'latest' tags
+all: build-read-resource push-read-resource build-post-resource push-post-resource
 
-## Build the 'slack-read-resource' image, tag with version and latest, then push to GHCR.
+## Build the 'slack-read-resource' image, tag with version and latest tags
 build-read-resource:
 	docker build --platform "linux/amd64" \
 		--build-arg VERSION=$(VERSION) \
@@ -34,11 +33,13 @@ build-read-resource:
 		--tag "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)" \
 		--tag "$(IMAGE_PREFIX)-slack-read-resource:$(IMAGE_TAG)" \
 		-f read/Dockerfile .
+
+push-read-resource:
 	$(DOCKER_LOGIN)
 	docker push "$(IMAGE_PREFIX)-slack-read-resource:$(VERSION)"
 	docker push "$(IMAGE_PREFIX)-slack-read-resource:$(IMAGE_TAG)"
 
-## Build the 'slack-post-resource' image, tag with version and latest, then push to GHCR.
+## Build the 'slack-post-resource' image, tag with version and latest tags
 build-post-resource:
 	docker build --platform "linux/amd64" \
 		--build-arg VERSION=$(VERSION) \
@@ -47,6 +48,8 @@ build-post-resource:
 		--tag "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)" \
 		--tag "$(IMAGE_PREFIX)-slack-post-resource:$(IMAGE_TAG)" \
 		-f post/Dockerfile .
+
+push-post-resource:
 	$(DOCKER_LOGIN)
 	docker push "$(IMAGE_PREFIX)-slack-post-resource:$(VERSION)"
 	docker push "$(IMAGE_PREFIX)-slack-post-resource:$(IMAGE_TAG)"

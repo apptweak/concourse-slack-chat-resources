@@ -19,13 +19,23 @@ with the following benefits:
 
 ## How to deploy
 
-```bash
-  # Build and push 2 images to GHCR: ghcr.io/apptweak/slack-read-resource and slack-post-resource
-  make all
+Deployment is CI-driven via GitHub Actions when you push a version tag. From your feature branch:
 
-  # Login example (CI recommended):
-  # gh auth token | docker login ghcr.io -u $(gh api user --jq .login) --password-stdin
+1) Create a pre-release tag (alpha/beta) locally
+
+```bash
+git tag vX.Y.Z-alpha.1   # or vX.Y.Z-beta.1
 ```
+
+2) Push the tag to GitHub
+
+```bash
+git push origin vX.Y.Z-alpha.1
+```
+
+3) GitHub Actions will detect the tag and build/push both images to GHCR
+- Images pushed: `ghcr.io/apptweak/slack-read-resource:vX.Y.Z-alpha.1` and `ghcr.io/apptweak/slack-post-resource:vX.Y.Z-alpha.1`
+- CI also applies a branch-based tag (`stable` on master, `latest` otherwise)
 
 
 Images on GHCR:
@@ -259,46 +269,34 @@ Example adding multiple reactions to the message that was just posted:
 
 ## Releases
 
-This repository publishes container images to GHCR when a version tag is pushed to `master`.
+This repository publishes container images to GHCR when a version tag is pushed (including pre-release tags from feature branches).
 
-- Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
+- Tag format: `vX.Y.Z` (e.g., `v1.2.3`) and pre-releases like `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`
 - Images published:
-  - `ghcr.io/apptweak/slack-read-resource:vX.Y.Z` and `:latest`
-  - `ghcr.io/apptweak/slack-post-resource:vX.Y.Z` and `:latest`
+  - `ghcr.io/apptweak/slack-read-resource:<version>` and branch tag (`stable` on master, `latest` for staging)
+  - `ghcr.io/apptweak/slack-post-resource:<version>` and branch tag (`stable` on master, `latest` for staging)
 
 How it works:
-- Pushing a tag `v*.*.*` triggers the `Tag Release` workflow, which verifies the tag commit is on `master` and then invokes the reusable `Build and Push Images` workflow.
+- Pushing a version tag triggers the release workflow, which invokes the reusable `Build and Push Images` workflow.
 - The reusable workflow logs in to GHCR using the built-in `GITHUB_TOKEN`, syncs the `VERSION` file from the tag, and runs `make all` to build and push both images.
 
 Manual release:
-- From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3`).
+- From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3` or `v1.2.3-alpha.1`).
 
 ## Development
 
 ### Prerequisites
 
 - Go 1.22+ (for local builds with modules)
-- Docker (for building/pushing images)
+- Docker or Podman (for building images locally)
 
-### Tool versions with mise
 
 Install [mise](https://mise.jdx.dev/install.html):
-
-Usage:
-
-```bash
-# Install pinned tool versions
-mise install
-
-# Verify tools in use
-mise which go
-mise which gh
-```
 
 ### Install dependencies
 
 ```bash
-go mod tidy
+./bin/setup
 ```
 
 ### Build images locally
@@ -306,12 +304,21 @@ go mod tidy
 Build and tag both images (`read` and `post`) with the version from `VERSION` and `latest`:
 
 ```bash
+# Using mise (recommended)
+mise run make:all
+
+# Or using make directly
 make all
 ```
 
 Or build a single image:
 
 ```bash
+# Using mise (recommended)
+mise run make:build-read-resource
+mise run make:build-post-resource
+
+# Or using make directly
 make build-read-resource
 make build-post-resource
 ```
@@ -332,7 +339,7 @@ make build-post-resource
 
 - Pull Requests and pushes to `main`/`master`/`feature/*`:
   - `PR Build (No Push)`: builds both images to catch compile issues; no registry push.
-- Tags matching `v*.*.*` on `master`:
-  - `Tag Release`: verifies the tag commit is on `master`, then calls `Build and Push Images`.
+- Version tags (including pre-releases like `vX.Y.Z-alpha.N`) on any branch:
+  - Release workflow calls `Build and Push Images` to build and publish to GHCR.
 - Manual publish:
   - `Build and Push Images`: can be dispatched from the Actions UI with an input `version` (e.g. `v1.2.3`).
