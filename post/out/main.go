@@ -207,19 +207,25 @@ func send(message *utils.OutMessage, request *utils.OutRequest, slack_client *sl
 }
 
 func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_client *slack.Client, source_dir string) {
-	// initialise FileUploadParameters
-	params := slack.FileUploadParameters{
+	// initialise UploadFileV2Parameters
+	params := slack.UploadFileV2Parameters{
 		Filename:        request.Params.Upload.FileName,
-		Filetype:        request.Params.Upload.FileType,
 		Title:           request.Params.Upload.Title,
 		ThreadTimestamp: response.Version["timestamp"],
-		Channels:        strings.Split(request.Params.Upload.Channels, ","),
+		Channel:         request.Params.Upload.Channels, // Channel is a single string ID, not a list of channels
+	}
+	// If no specific channel is provided for the upload, use the main channel ID
+	if params.Channel == "" {
+		params.Channel = request.Source.ChannelId
 	}
 
 	if request.Params.Upload.File != "" {
 		matched, glob_err := filepath.Glob(filepath.Join(source_dir, request.Params.Upload.File))
 		if glob_err != nil {
 			fatal("Gloing Pattern", glob_err)
+		}
+		if len(matched) == 0 {
+			fatal1("No file matched the pattern: " + request.Params.Upload.File)
 		}
 
 		params.File = matched[0]
@@ -235,15 +241,17 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	p, _ := json.MarshalIndent(params, "", "  ")
 	fmt.Fprintf(os.Stderr, "%s\n", p)
 
-	file, err := slack_client.UploadFile(params)
+	file, err := slack_client.UploadFileV2(params)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Name: "+file.Name+", URL: "+file.URLPrivate+"\n")
+	// The V2 API returns a FileSummary, but we need details like URLPrivate which might not be directly populated
+	// in the same way. However, the summary contains the ID, and we can use that if needed, or rely on what's returned.
+	fmt.Fprintf(os.Stderr, "Uploaded file: ID="+file.ID+", Name="+file.Title+"\n")
 
-	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Name, Value: file.URLPrivate})
+	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Title, Value: file.ID})
 }
 
 func addReactions(slack_client *slack.Client, channelId string, timestamp string, emojis []string) {
