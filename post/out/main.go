@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -210,350 +207,43 @@ func send(message *utils.OutMessage, request *utils.OutRequest, slack_client *sl
 }
 
 func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_client *slack.Client, source_dir string) {
-	var fileContent []byte
-	var filename string
-	var fileSize int64
+	// initialise FileUploadParameters
+	params := slack.FileUploadParameters{
+		Filename:        request.Params.Upload.FileName,
+		Filetype:        request.Params.Upload.FileType,
+		Title:           request.Params.Upload.Title,
+		ThreadTimestamp: response.Version["timestamp"],
+		Channels:        strings.Split(request.Params.Upload.Channels, ","),
+	}
 
-	// Read file content and determine filename
 	if request.Params.Upload.File != "" {
 		matched, glob_err := filepath.Glob(filepath.Join(source_dir, request.Params.Upload.File))
 		if glob_err != nil {
-			fatal("Globbing Pattern", glob_err)
-		}
-		if len(matched) == 0 {
-			fatal1("No files matched the pattern: " + request.Params.Upload.File)
+			fatal("Gloing Pattern", glob_err)
 		}
 
-		filePath := matched[0]
-		fmt.Fprintf(os.Stderr, "About to upload: %s\n", filePath)
-
-		// Read file content
-		content, read_err := ioutil.ReadFile(filePath)
-		if read_err != nil {
-			fatal("reading file", read_err)
-		}
-		fileContent = content
-
-		// Get file size
-		fileInfo, stat_err := os.Stat(filePath)
-		if stat_err != nil {
-			fatal("getting file stats", stat_err)
-		}
-		fileSize = fileInfo.Size()
-
-		// Determine filename
-		if request.Params.Upload.FileName != "" {
-			filename = request.Params.Upload.FileName
-		} else {
-			filename = filepath.Base(filePath)
-		}
+		params.File = matched[0]
+		fmt.Fprintf(os.Stderr, "About to upload: "+params.File+"\n")
 	} else if request.Params.Upload.Content != "" {
-		fmt.Fprintf(os.Stderr, "About to upload specified content as file\n")
-		fileContent = []byte(request.Params.Upload.Content)
-		fileSize = int64(len(fileContent))
-
-		if request.Params.Upload.FileName != "" {
-			filename = request.Params.Upload.FileName
-		} else {
-			filename = "upload.txt"
-		}
+		params.Content = request.Params.Upload.Content
+		fmt.Fprintf(os.Stderr, "About to upload specify content as file\n")
 	} else {
-		fatal1("You must either set Upload.Content or provide a local file path in Upload.File to upload it from your filesystem.")
+		fmt.Printf("You must either set Upload.Content or provide a local file path in Upload.File to upload it from your filesystem.")
 		return
 	}
 
-	// Determine title
-	title := request.Params.Upload.Title
-	if title == "" {
-		title = filename
-	}
+	p, _ := json.MarshalIndent(params, "", "  ")
+	fmt.Fprintf(os.Stderr, "%s\n", p)
 
-	// Determine channel_id - use first channel from Channels or fallback to Source.ChannelId
-	// For file uploads, we'll use the source channel ID to ensure consistency with the message
-	channelId := request.Source.ChannelId
-	if request.Params.Upload.Channels != "" {
-		channels := strings.Split(request.Params.Upload.Channels, ",")
-		if len(channels) > 0 && strings.TrimSpace(channels[0]) != "" {
-			channelId = strings.TrimSpace(channels[0])
-		}
-	}
-
-	// Step 1: Call files.getUploadURLExternal
-	fmt.Fprintf(os.Stderr, "Step 1: Getting upload URL for file: %s (size: %d bytes)\n", filename, fileSize)
-	uploadURL, fileID, err := getUploadURLExternal(request.Source.Token, filename, fileSize)
+	file, err := slack_client.UploadFile(params)
 	if err != nil {
-		fatal("getting upload URL", err)
-	}
-	fmt.Fprintf(os.Stderr, "Got upload URL and file ID: %s\n", fileID)
-
-	// Step 2: Upload file content to the upload URL using HTTP PUT
-	fmt.Fprintf(os.Stderr, "Step 2: Uploading file content to upload URL\n")
-	err = uploadFileToURL(uploadURL, fileContent)
-	if err != nil {
-		fatal("uploading file to URL", err)
-	}
-	fmt.Fprintf(os.Stderr, "File content uploaded successfully\n")
-
-	// Step 3: Call files.completeUploadExternal - complete upload first
-	fmt.Fprintf(os.Stderr, "Step 3: Completing upload for file ID: %s\n", fileID)
-	fileInfo, err := completeUploadExternal(request.Source.Token, fileID, title, "", "", "")
-	if err != nil {
-		fatal("completing upload", err)
+		fmt.Printf("Error: %s\n", err)
+		return
 	}
 
-	// Step 4: Share the file to the channel using files.sharedPublicURL.create or by posting it
-	// Since files.completeUploadExternal with channel_id doesn't seem to work,
-	// let's try sharing via a message update or a separate share call
-	fmt.Fprintf(os.Stderr, "Step 4: Attempting to share file to channel: %s\n", channelId)
-	threadTs := response.Version["timestamp"]
+	fmt.Fprintf(os.Stderr, "Name: "+file.Name+", URL: "+file.URLPrivate+"\n")
 
-	// Try using chat.postMessage with file reference or update the original message
-	// Actually, let's check if we can use the file permalink in the message
-	err = shareFileByUpdatingMessage(slack_client, request.Source.ChannelId, threadTs, fileInfo.Permalink)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Could not share file via message update: %s\n", err.Error())
-		// File is still uploaded, just not shared - this is better than failing completely
-	}
-
-	fmt.Fprintf(os.Stderr, "Upload completed successfully. Name: %s, URL: %s\n", fileInfo.Name, fileInfo.URLPrivate)
-	response.Metadata = append(response.Metadata, utils.MetadataField{Name: fileInfo.Name, Value: fileInfo.URLPrivate})
-}
-
-// getUploadURLExternal calls files.getUploadURLExternal API
-func getUploadURLExternal(token, filename string, length int64) (string, string, error) {
-	apiURL := "https://slack.com/api/files.getUploadURLExternal"
-
-	formData := url.Values{}
-	formData.Set("filename", filename)
-	formData.Set("length", fmt.Sprintf("%d", length))
-	formData.Set("token", token)
-
-	resp, err := http.PostForm(apiURL, formData)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to call API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var result struct {
-		OK        bool   `json:"ok"`
-		Error     string `json:"error,omitempty"`
-		UploadURL string `json:"upload_url,omitempty"`
-		FileID    string `json:"file_id,omitempty"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if !result.OK {
-		return "", "", fmt.Errorf("API error: %s", result.Error)
-	}
-
-	if result.UploadURL == "" || result.FileID == "" {
-		return "", "", fmt.Errorf("missing upload_url or file_id in response")
-	}
-
-	return result.UploadURL, result.FileID, nil
-}
-
-// uploadFileToURL uploads file content to the provided URL using HTTP PUT
-func uploadFileToURL(uploadURL string, content []byte) error {
-	req, err := http.NewRequest("PUT", uploadURL, bytes.NewReader(content))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/octet-stream")
-	req.ContentLength = int64(len(content))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to upload file: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
-}
-
-// FileInfo represents the file information returned from completeUploadExternal
-type FileInfo struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	URLPrivate string `json:"url_private"`
-	Permalink  string `json:"permalink"`
-}
-
-// shareFileByUpdatingMessage updates the original message to include the file link
-func shareFileByUpdatingMessage(slack_client *slack.Client, channelID, messageTs, filePermalink string) error {
-	// Update the original message to include the file
-	// This is a workaround since files.completeUploadExternal with channel_id doesn't share the file
-	_, _, _, err := slack_client.UpdateMessage(channelID, messageTs,
-		slack.MsgOptionText(fmt.Sprintf("Testing file upload\n\nFile: %s", filePermalink), false))
-	return err
-}
-
-// shareFileViaMessage shares a file by posting a message with the file in a channel
-func shareFileViaMessage(token, channelID, fileID, threadTs string) error {
-	// Use chat.postMessage API directly with file parameter
-	apiURL := "https://slack.com/api/chat.postMessage"
-
-	formData := url.Values{}
-	formData.Set("channel", channelID)
-	formData.Set("token", token)
-
-	// Add file as an attachment - try using blocks or file parameter
-	// Actually, let's try posting the file permalink or using files.info to get shareable URL
-	// For now, let's use a simpler approach: post message with file reference
-
-	// Try using the file ID in the message
-	// Slack might auto-link file IDs in messages
-	messageText := fmt.Sprintf("File uploaded: <https://apptweak.slack.com/files/%s|View File>", fileID)
-	formData.Set("text", messageText)
-
-	if threadTs != "" {
-		formData.Set("thread_ts", threadTs)
-	}
-
-	resp, err := http.PostForm(apiURL, formData)
-	if err != nil {
-		return fmt.Errorf("failed to call API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
-	}
-
-	fmt.Fprintf(os.Stderr, "chat.postMessage (file share) API response: %s\n", string(body))
-
-	var result struct {
-		OK    bool   `json:"ok"`
-		Error string `json:"error,omitempty"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if !result.OK {
-		return fmt.Errorf("API error: %s", result.Error)
-	}
-
-	return nil
-}
-
-// completeUploadExternal calls files.completeUploadExternal API
-func completeUploadExternal(token, fileID, title, channelID, threadTs, initialComment string) (*FileInfo, error) {
-	apiURL := "https://slack.com/api/files.completeUploadExternal"
-
-	// Build files array
-	filesArray := []map[string]string{
-		{
-			"id":    fileID,
-			"title": title,
-		},
-	}
-
-	formData := url.Values{}
-	filesJSON, err := json.Marshal(filesArray)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal files array: %w", err)
-	}
-	formData.Set("files", string(filesJSON))
-	formData.Set("token", token)
-
-	// Add channel_id to share the file to the channel
-	if channelID != "" {
-		formData.Set("channel_id", channelID)
-	}
-
-	// Add initial_comment - this might be required to share the file
-	if initialComment != "" {
-		formData.Set("initial_comment", initialComment)
-	}
-
-	// Add thread_ts if provided to attach file to a thread
-	if threadTs != "" {
-		formData.Set("thread_ts", threadTs)
-	}
-
-	// Debug: log the request parameters (without token)
-	fmt.Fprintf(os.Stderr, "completeUploadExternal request - channel_id: %s, thread_ts: %s, files: %s\n", channelID, threadTs, string(filesJSON))
-
-	resp, err := http.PostForm(apiURL, formData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Debug: log the raw response
-	fmt.Fprintf(os.Stderr, "completeUploadExternal API response: %s\n", string(body))
-
-	var result struct {
-		OK    bool   `json:"ok"`
-		Error string `json:"error,omitempty"`
-		Files []struct {
-			ID         string `json:"id"`
-			Name       string `json:"name"`
-			URLPrivate string `json:"url_private"`
-			Permalink  string `json:"permalink"`
-		} `json:"files,omitempty"`
-		File struct {
-			ID         string `json:"id"`
-			Name       string `json:"name"`
-			URLPrivate string `json:"url_private"`
-			Permalink  string `json:"permalink"`
-		} `json:"file,omitempty"`
-	}
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if !result.OK {
-		return nil, fmt.Errorf("API error: %s", result.Error)
-	}
-
-	// Handle both files array and single file response formats
-	var finalFileID, finalFileName, finalFileURL, finalPermalink string
-
-	if len(result.Files) > 0 {
-		finalFileID = result.Files[0].ID
-		finalFileName = result.Files[0].Name
-		finalFileURL = result.Files[0].URLPrivate
-		finalPermalink = result.Files[0].Permalink
-	} else if result.File.ID != "" {
-		finalFileID = result.File.ID
-		finalFileName = result.File.Name
-		finalFileURL = result.File.URLPrivate
-		finalPermalink = result.File.Permalink
-	} else {
-		return nil, fmt.Errorf("no file information in response")
-	}
-
-	return &FileInfo{
-		ID:         finalFileID,
-		Name:       finalFileName,
-		URLPrivate: finalFileURL,
-		Permalink:  finalPermalink,
-	}, nil
+	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Name, Value: file.URLPrivate})
 }
 
 func addReactions(slack_client *slack.Client, channelId string, timestamp string, emojis []string) {

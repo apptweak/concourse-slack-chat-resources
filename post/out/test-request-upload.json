@@ -6,8 +6,8 @@
     "params":{
         "message_file": "test-message.json",
         "upload": {
-            "filename": "test-file.txt",
-            "file": "test-file.txt"
+            "filename": "testfile",
+            "file": "test-message.json"
         }
     }
 }
