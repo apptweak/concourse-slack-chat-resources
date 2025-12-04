@@ -1,0 +1,29 @@
+[tools]
+go 	= "1.25.5"
+
+
+[tasks.setup]
+description = "Install tools and project dependencies"
+run = [
+  "mise install -y",
+  "go mod download"
+]
+
+[tasks.doctor]
+description = "Show tool versions for troubleshooting"
+run = [
+  "go version || true",
+]
+
+[tasks."build:all"]
+description = "Build and push both Concourse resources (read/post)"
+run = "make all"
+
+[tasks."build:read-resource"]
+description = "Build the 'slack-read-resource' image"
+run = "make build-read-resource"
+
+[tasks."build:post-resource"]
+description = "Build the 'slack-post-resource' image"
+run = "make build-post-resource"
+
