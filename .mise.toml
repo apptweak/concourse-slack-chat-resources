@@ -1,0 +1,43 @@
+[tools]
+# Latest version of the GitHub CLI
+gh      = "latest"
+go 	    = "1.25.5"
+
+[env]
+# Safe defaults for building Go binaries
+CGO_ENABLED = "0"
+
+[tasks.setup]
+description = "Install tools and project dependencies"
+depends = ["go.mod", "go.sum"]
+depends_post = ["go.sum"]
+run = [
+  "mise install -y",
+  "go mod download"
+]
+
+[tasks.doctor]
+description = "Show tool versions for troubleshooting"
+run = [
+  "go version || true",
+  "gh --version || true",
+]
+
+[tasks."run:all"]
+description = "Run both API and Prometheus servers concurrently"
+run = [
+  "go run . -server=all"
+]
+
+# Makefile integrations
+[tasks."make:all"]
+description = "Build and push both Concourse resources using Makefile"
+run = "make all"
+
+[tasks."make:build-read-resource"]
+description = "Build and push the slack-read-resource image using Makefile"
+run = "make build-read-resource"
+
+[tasks."make:build-post-resource"]
+description = "Build and push the slack-post-resource image using Makefile"
+run = "make build-post-resource"
