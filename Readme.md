@@ -5,7 +5,7 @@ This repository provides Concourse resource types to read, act on, and reply to 
 There are two resource types:
 
 - `slack-read-resource`: For reading messages. (uses [chat.postMessage](https://api.slack.com/methods/chat.postMessage))
-- `slack-post-resource`: For posting/updating messages. Uploading files (uses [channels.history](https://slack.com/api/channels.history) or [chat.update](https://api.slack.com/methods/chat.update), [files.upload](https://api.slack.com/methods/files.upload)
+- `slack-post-resource`: For posting/updating messages and uploading files (uses [chat.postMessage](https://api.slack.com/methods/chat.postMessage), [chat.update](https://api.slack.com/methods/chat.update), and the [external file upload API](https://api.slack.com/messaging/files#uploading_files))
 
 There are two resource types because a system does not want to respond to messages that it posts itself. Concourse assumes that an output of a resource is also a valid input. Therefore, separate resources are used for reading and posting. Since using a single resource has no benefits over separate resources, reading and posting are split into two resource types.
 
@@ -167,7 +167,14 @@ Parameters:
 - `message`: *Optional*. The message to send described in YAML.
 - `message_file`: *Optional*. The file containing the message to send described in JSON.
 - `update_ts`: *Optional*. Instead of pusting new message update this message. (support interpolation see below)
-- `upload` : *Optional* Upload a file and attached it to the message. (see [files.upload](https://api.slack.com/methods/files.upload))
+- `upload`: *Optional*. Upload a file and attach it to the posted message thread. Uses Slack's external file upload flow ([files.getUploadURLExternal](https://api.slack.com/methods/files.getUploadURLExternal) / [files.completeUploadExternal](https://api.slack.com/methods/files.completeUploadExternal)). Requires the `files:write` scope on the bot token.
+  - `file`: Path (supports globs) to a file in the resource directory to upload.
+  - `content`: Alternatively, inline file content to upload (requires `filename`).
+  - `filename`: Name sent to Slack. Defaults to the basename of `file` when omitted.
+  - `title`: Optional display title for the uploaded file.
+  - `filetype`: Optional snippet type (e.g. `php`, `text`).
+  - `channels`: Optional channel ID. Comma-separated values are supported; the first non-empty ID is used. Defaults to `source.channel_id`.
+  - The resource metadata for uploads contains the Slack file ID (not a private URL).
  - `emoji_reactions` : *Optional* List of emoji names to add as reactions to the posted/updated message (e.g. `["white_check_mark", "rocket"]`).
  - `thread_emoji_reactions` : *Optional* List of emoji names to add as reactions to the parent message referenced by `message.thread_ts` (e.g. `["eyes", "thinking_face"]`).
 
@@ -226,9 +233,9 @@ Consider a job with the `get: something` step from the example above followed by
           title: My awesome file
           filetype: php
 
-This will create a message and post *something/path/to/file* to a thread.
+This will create a message and upload *something/path/to/file* as a thread reply.
 
-> Notice that in order for your message to be visible *channels* is mandatory.
+> If `upload.channels` is omitted, the file is shared to `source.channel_id`.
 
 #### Send message and add reactions
 
@@ -277,7 +284,7 @@ Manual release:
 
 ### Prerequisites
 
-- Go 1.22+ (for local builds with modules)
+- Go 1.25+ (for local builds with modules)
 - Docker (for building/pushing images)
 
 ### Tool versions with mise

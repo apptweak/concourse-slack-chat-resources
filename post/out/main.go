@@ -207,13 +207,17 @@ func send(message *utils.OutMessage, request *utils.OutRequest, slack_client *sl
 }
 
 func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_client *slack.Client, source_dir string) {
-	// initialise FileUploadParameters
-	params := slack.FileUploadParameters{
+	// initialise UploadFileParameters
+	params := slack.UploadFileParameters{
 		Filename:        request.Params.Upload.FileName,
-		Filetype:        request.Params.Upload.FileType,
 		Title:           request.Params.Upload.Title,
+		SnippetType:     request.Params.Upload.FileType,
 		ThreadTimestamp: response.Version["timestamp"],
-		Channels:        strings.Split(request.Params.Upload.Channels, ","),
+		Channel:         firstChannelID(request.Params.Upload.Channels),
+	}
+	// If no specific channel is provided for the upload, use the main channel ID
+	if params.Channel == "" {
+		params.Channel = request.Source.ChannelId
 	}
 
 	if request.Params.Upload.File != "" {
@@ -221,11 +225,26 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 		if glob_err != nil {
 			fatal("Gloing Pattern", glob_err)
 		}
+		if len(matched) == 0 {
+			fatal1("No file matched the pattern: " + request.Params.Upload.File)
+		}
 
 		params.File = matched[0]
+		if params.Filename == "" {
+			params.Filename = filepath.Base(params.File)
+		}
+		info, stat_err := os.Stat(params.File)
+		if stat_err != nil {
+			fatal("stat upload file", stat_err)
+		}
+		params.FileSize = int(info.Size())
 		fmt.Fprintf(os.Stderr, "About to upload: "+params.File+"\n")
 	} else if request.Params.Upload.Content != "" {
 		params.Content = request.Params.Upload.Content
+		params.FileSize = len([]byte(request.Params.Upload.Content))
+		if params.Filename == "" {
+			fatal1("upload.filename is required when uploading content")
+		}
 		fmt.Fprintf(os.Stderr, "About to upload specify content as file\n")
 	} else {
 		fmt.Printf("You must either set Upload.Content or provide a local file path in Upload.File to upload it from your filesystem.")
@@ -241,9 +260,19 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Name: "+file.Name+", URL: "+file.URLPrivate+"\n")
+	// UploadFile returns a FileSummary; URLPrivate is not included.
+	fmt.Fprintf(os.Stderr, "Uploaded file: ID="+file.ID+", Name="+file.Title+"\n")
 
-	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Name, Value: file.URLPrivate})
+	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Title, Value: file.ID})
+}
+
+func firstChannelID(channels string) string {
+	for _, channel := range strings.Split(channels, ",") {
+		if id := strings.TrimSpace(channel); id != "" {
+			return id
+		}
+	}
+	return ""
 }
 
 func addReactions(slack_client *slack.Client, channelId string, timestamp string, emojis []string) {
