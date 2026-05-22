@@ -213,8 +213,9 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 		Title:           request.Params.Upload.Title,
 		SnippetType:     request.Params.Upload.FileType,
 		ThreadTimestamp: response.Version["timestamp"],
-		Channel:         request.Params.Upload.Channels,
+		Channel:         firstChannelID(request.Params.Upload.Channels),
 	}
+	// If no specific channel is provided for the upload, use the main channel ID
 	if params.Channel == "" {
 		params.Channel = request.Source.ChannelId
 	}
@@ -264,6 +265,15 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	fmt.Fprintf(os.Stderr, "Uploaded file: ID="+file.ID+", Name="+file.Title+"\n")
 
 	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Title, Value: file.ID})
+}
+
+func firstChannelID(channels string) string {
+	for _, channel := range strings.Split(channels, ",") {
+		if id := strings.TrimSpace(channel); id != "" {
+			return id
+		}
+	}
+	return ""
 }
 
 func addReactions(slack_client *slack.Client, channelId string, timestamp string, emojis []string) {
