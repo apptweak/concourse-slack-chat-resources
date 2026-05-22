@@ -284,7 +284,7 @@ Manual release:
 
 ### Prerequisites
 
-- Go 1.22+ (for local builds with modules)
+- Go 1.25+ (for local builds with modules)
 - Docker (for building/pushing images)
 
 ### Tool versions with mise

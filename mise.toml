@@ -1,7 +1,7 @@
 [tools]
 # Latest version of the GitHub CLI
 gh = "latest"
-go = "1.22"
+go = "1.25"
 
 [env]
 # Safe defaults for building Go binaries

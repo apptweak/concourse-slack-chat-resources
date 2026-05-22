@@ -207,8 +207,8 @@ func send(message *utils.OutMessage, request *utils.OutRequest, slack_client *sl
 }
 
 func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_client *slack.Client, source_dir string) {
-	// initialise UploadFileV2Parameters
-	params := slack.UploadFileV2Parameters{
+	// initialise UploadFileParameters
+	params := slack.UploadFileParameters{
 		Filename:        request.Params.Upload.FileName,
 		Title:           request.Params.Upload.Title,
 		SnippetType:     request.Params.Upload.FileType,
@@ -254,14 +254,13 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	p, _ := json.MarshalIndent(params, "", "  ")
 	fmt.Fprintf(os.Stderr, "%s\n", p)
 
-	file, err := slack_client.UploadFileV2(params)
+	file, err := slack_client.UploadFile(params)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
 		return
 	}
 
-	// The V2 API returns a FileSummary, but we need details like URLPrivate which might not be directly populated
-	// in the same way. However, the summary contains the ID, and we can use that if needed, or rely on what's returned.
+	// UploadFile returns a FileSummary; URLPrivate is not included.
 	fmt.Fprintf(os.Stderr, "Uploaded file: ID="+file.ID+", Name="+file.Title+"\n")
 
 	response.Metadata = append(response.Metadata, utils.MetadataField{Name: file.Title, Value: file.ID})
