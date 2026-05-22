@@ -211,10 +211,10 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 	params := slack.UploadFileV2Parameters{
 		Filename:        request.Params.Upload.FileName,
 		Title:           request.Params.Upload.Title,
+		SnippetType:     request.Params.Upload.FileType,
 		ThreadTimestamp: response.Version["timestamp"],
-		Channel:         request.Params.Upload.Channels, // Channel is a single string ID, not a list of channels
+		Channel:         request.Params.Upload.Channels,
 	}
-	// If no specific channel is provided for the upload, use the main channel ID
 	if params.Channel == "" {
 		params.Channel = request.Source.ChannelId
 	}
@@ -229,9 +229,21 @@ func uploadFile(response *utils.OutResponse, request *utils.OutRequest, slack_cl
 		}
 
 		params.File = matched[0]
+		if params.Filename == "" {
+			params.Filename = filepath.Base(params.File)
+		}
+		info, stat_err := os.Stat(params.File)
+		if stat_err != nil {
+			fatal("stat upload file", stat_err)
+		}
+		params.FileSize = int(info.Size())
 		fmt.Fprintf(os.Stderr, "About to upload: "+params.File+"\n")
 	} else if request.Params.Upload.Content != "" {
 		params.Content = request.Params.Upload.Content
+		params.FileSize = len([]byte(request.Params.Upload.Content))
+		if params.Filename == "" {
+			fatal1("upload.filename is required when uploading content")
+		}
 		fmt.Fprintf(os.Stderr, "About to upload specify content as file\n")
 	} else {
 		fmt.Printf("You must either set Upload.Content or provide a local file path in Upload.File to upload it from your filesystem.")
