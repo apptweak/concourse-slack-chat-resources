@@ -20,18 +20,25 @@ with the following benefits:
 ## How to deploy
 
 ```bash
-  # Build and push 2 images to GHCR: ghcr.io/apptweak/slack-read-resource and slack-post-resource
-  make all
+# Build and push read/post images to Ops ECR:
+#   362072154386.dkr.ecr.eu-west-1.amazonaws.com/concourse-slack-read-resource
+#   362072154386.dkr.ecr.eu-west-1.amazonaws.com/concourse-slack-post-resource
+make all
 
-  # Login example (CI recommended):
-  # gh auth token | docker login ghcr.io -u $(gh api user --jq .login) --password-stdin
+# Local login example (CI uses GitHub OIDC instead):
+# aws ecr get-login-password --region eu-west-1 \
+#   | docker login --username AWS --password-stdin 362072154386.dkr.ecr.eu-west-1.amazonaws.com
 ```
 
+Canonical images on Ops ECR:
 
-Images on GHCR:
+- `362072154386.dkr.ecr.eu-west-1.amazonaws.com/concourse-slack-read-resource`
+- `362072154386.dkr.ecr.eu-west-1.amazonaws.com/concourse-slack-post-resource`
 
-- [ghcr.io/apptweak/slack-read-resource](https://github.com/orgs/apptweak/packages/container/package/slack-read-resource)
-- [ghcr.io/apptweak/slack-post-resource](https://github.com/orgs/apptweak/packages/container/package/slack-post-resource)
+Legacy GHCR packages (no longer published):
+
+- [ghcr.io/apptweak/concourse-slack-read-resource](https://github.com/orgs/apptweak/packages/container/package/concourse-slack-read-resource)
+- [ghcr.io/apptweak/concourse-slack-post-resource](https://github.com/orgs/apptweak/packages/container/package/concourse-slack-post-resource)
 
 ## Version Format
 
@@ -266,16 +273,16 @@ Example adding multiple reactions to the message that was just posted:
 
 ## Releases
 
-This repository publishes container images to GHCR when a version tag is pushed to `master`.
+This repository publishes container images to **Ops ECR** when a version tag is pushed to `master` (GitHub Actions assumes an IAM role via OIDC; no static AWS keys).
 
 - Tag format: `vX.Y.Z` (e.g., `v1.2.3`)
 - Images published:
-  - `ghcr.io/apptweak/slack-read-resource:vX.Y.Z` and `:latest`
-  - `ghcr.io/apptweak/slack-post-resource:vX.Y.Z` and `:latest`
+  - `362072154386.dkr.ecr.eu-west-1.amazonaws.com/concourse-slack-read-resource:vX.Y.Z` and `:stable`
+  - `362072154386.dkr.ecr.eu-west-1.amazonaws.com/concourse-slack-post-resource:vX.Y.Z` and `:stable`
 
 How it works:
 - Pushing a tag `v*.*.*` triggers the `Tag Release` workflow, which verifies the tag commit is on `master` and then invokes the reusable `Build and Push Images` workflow.
-- The reusable workflow logs in to GHCR using the built-in `GITHUB_TOKEN`, syncs the `VERSION` file from the tag, and runs `make all` to build and push both images.
+- The reusable workflow assumes `github-oidc-concourse-slack-chat-resources-ecr-push`, logs in to ECR, syncs the `VERSION` file from the tag, and runs `make all` to build and push both images.
 
 Manual release:
 - From the GitHub Actions tab, run the `Build and Push Images` workflow and provide a `version` input (e.g., `v1.2.3`).
@@ -310,7 +317,7 @@ go mod tidy
 
 ### Build images locally
 
-Build and tag both images (`read` and `post`) with the version from `VERSION` and `latest`:
+Build and tag both images (`read` and `post`) with the version from `VERSION` and `stable`/`latest` (branch-dependent), then push to Ops ECR:
 
 ```bash
 make all
