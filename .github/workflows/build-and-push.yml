@@ -16,9 +16,17 @@ on:
         required: true
         type: string
 
+# Publish to Ops ECR via GitHub OIDC → github-oidc-concourse-slack-chat-resources-ecr-push (no static AWS keys).
 permissions:
-  contents: read    # read repository content
-  packages: write   # push images to GHCR
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-west-1
+  AWS_ROLE_ARN: arn:aws:iam::362072154386:role/github-oidc-concourse-slack-chat-resources-ecr-push
+  ECR_REGISTRY: 362072154386.dkr.ecr.eu-west-1.amazonaws.com
+  # Release publishes always refresh the stable moving tag (detached HEAD would otherwise yield "latest").
+  IMAGE_TAG: stable
 
 jobs:
   build:
@@ -32,10 +40,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Sync VERSION file with tag
         run: |

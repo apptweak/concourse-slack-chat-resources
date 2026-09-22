@@ -6,8 +6,8 @@ on:
       - 'v*.*.*'  # semantic version tags
 
 permissions:
-  contents: read    # read repository content
-  packages: write   # push images to GHCR
+  contents: read
+  id-token: write
 
 jobs:
   verify:
